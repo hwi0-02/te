@@ -1,0 +1,83 @@
+package com.example.backend.admin.controller;
+
+import com.example.backend.admin.domain.Coupon;
+import com.example.backend.admin.service.AdminCouponService;
+import com.example.backend.dto.ApiResponse;
+import com.example.backend.dto.PageResponse;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.http.ResponseEntity;
+
+import java.time.LocalDateTime;
+import org.springframework.format.annotation.DateTimeFormat;
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/admin/coupons")
+@RequiredArgsConstructor
+public class AdminCouponController {
+    private final AdminCouponService couponService;
+
+    @GetMapping
+    public ApiResponse<PageResponse<Coupon>> list(@RequestParam(required = false) Boolean active, Pageable pageable) {
+        Page<Coupon> page = couponService.list(active, pageable);
+        return ApiResponse.ok(PageResponse.of(page));
+    }
+
+    @GetMapping("/{id}")
+    public ApiResponse<Coupon> get(@PathVariable Long id) {
+        return ApiResponse.ok(couponService.get(id));
+    }
+
+    @PostMapping
+    public ResponseEntity<ApiResponse<Coupon>> create(@RequestBody Coupon coupon) {
+        try {
+            return ResponseEntity.ok(ApiResponse.ok(couponService.create(coupon)));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.fail(e.getMessage()));
+        }
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<ApiResponse<Coupon>> update(@PathVariable Long id, @RequestBody Coupon coupon) {
+        try {
+            return ResponseEntity.ok(ApiResponse.ok(couponService.update(id, coupon)));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.fail(e.getMessage()));
+        }
+    }
+
+    @DeleteMapping("/{id}")
+    public ApiResponse<Void> delete(@PathVariable Long id) {
+        couponService.delete(id);
+        return ApiResponse.ok(null);
+    }
+
+    public static record BulkIssueRequest(
+            Long userId,
+            String baseCode,
+            Integer count,
+            Coupon.DiscountType discountType,
+            Integer discountValue,
+            Integer minSpend,
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime validFrom,
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime validTo,
+            Boolean active
+    ) {}
+
+    @PostMapping("/bulk-issue")
+    public ApiResponse<List<Coupon>> bulkIssue(@RequestBody BulkIssueRequest req) {
+        int count = req.count() != null ? req.count() : 0;
+        if (count <= 0) {
+            return ApiResponse.fail("count must be > 0");
+        }
+        List<Coupon> created = couponService.bulkIssue(
+                req.userId(), req.baseCode(), count, req.discountType(),
+                req.discountValue(), req.minSpend(), req.validFrom(), req.validTo(), Boolean.TRUE.equals(req.active())
+        );
+        return ApiResponse.ok(created);
+    }
+}
+ 
