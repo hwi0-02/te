@@ -1,6 +1,7 @@
 package com.example.backend.admin.controller;
 
 import com.example.backend.admin.service.AdminHotelService;
+import com.example.backend.authlogin.domain.User;
 import com.example.backend.dto.ApiResponse;
 import com.example.backend.dto.HotelAdminDto;
 import com.example.backend.dto.PageResponse;
@@ -26,45 +27,74 @@ public class AdminHotelController {
                                             @RequestParam(required = false) Integer minStar,
                                             @RequestParam(required = false) Hotel.ApprovalStatus status,
                                             Pageable pageable) {
-        Page<HotelAdminDto> page = hotelService.list(name, minStar, status, pageable);
-        return ResponseEntity.ok(ApiResponse.ok(PageResponse.of(page)));
+        try {
+            Page<HotelAdminDto> page = hotelService.list(name, minStar, status, pageable);
+            return ResponseEntity.ok(ApiResponse.ok(PageResponse.of(page)));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(ApiResponse.fail("호텔 목록 조회 중 오류가 발생했습니다: " + e.getMessage()));
+        }
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<HotelAdminDto>> detail(@PathVariable Long id) {
-        return ResponseEntity.ok(ApiResponse.ok(hotelService.get(id)));
+        try {
+            HotelAdminDto hotel = hotelService.get(id);
+            return ResponseEntity.ok(ApiResponse.ok(hotel));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(ApiResponse.fail("호텔 상세 정보 조회 중 오류가 발생했습니다: " + e.getMessage()));
+        }
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Void>> delete(@PathVariable Long id) {
-        hotelService.delete(id);
-        return ResponseEntity.ok(ApiResponse.ok(null));
+        try {
+            hotelService.delete(id);
+            return ResponseEntity.ok(ApiResponse.ok(null));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(ApiResponse.fail("호텔 삭제 중 오류가 발생했습니다: " + e.getMessage()));
+        }
     }
 
     @PutMapping("/{id}/approve")
-    public ResponseEntity<Void> approve(@PathVariable Long id, @RequestParam(required = false) String note) {
-        // TODO: 인증 컨텍스트에서 adminUserId 추출
-        Long adminUserId = null;
-        var auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
-        if (auth != null && auth.getPrincipal() instanceof String) {
-            String email = (String) auth.getPrincipal();
-            var userOpt = userRepository.findByEmail(email);
-            adminUserId = userOpt.map(u -> u.getId()).orElse(null);
+    public ResponseEntity<ApiResponse<Void>> approve(@PathVariable Long id, @RequestParam(required = false) String note) {
+        try {
+            Long adminUserId = null;
+            var auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+            if (auth != null && auth.getPrincipal() instanceof org.springframework.security.core.userdetails.User) {
+                org.springframework.security.core.userdetails.User user = (org.springframework.security.core.userdetails.User) auth.getPrincipal();
+                String email = user.getUsername();
+                var userOpt = userRepository.findByEmail(email);
+                adminUserId = userOpt.map(u -> u.getId()).orElse(null);
+            }
+
+            // 인증되지 않은 경우에도 시스템 승인으로 처리
+            hotelService.approve(id, adminUserId, note);
+            return ResponseEntity.ok(ApiResponse.ok(null));
+        } catch (IllegalStateException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.fail(e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(ApiResponse.fail("승인 처리 중 오류가 발생했습니다: " + e.getMessage()));
         }
-        hotelService.approve(id, adminUserId, note);
-        return ResponseEntity.ok().build();
     }
 
     @PutMapping("/{id}/reject")
-    public ResponseEntity<Void> reject(@PathVariable Long id, @RequestParam(required = false) String reason) {
-        hotelService.reject(id, reason);
-        return ResponseEntity.ok().build();
+    public ResponseEntity<ApiResponse<Void>> reject(@PathVariable Long id, @RequestParam(required = false) String reason) {
+        try {
+            hotelService.reject(id, reason);
+            return ResponseEntity.ok(ApiResponse.ok(null));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(ApiResponse.fail("거부 처리 중 오류가 발생했습니다: " + e.getMessage()));
+        }
     }
 
     @PutMapping("/{id}/suspend")
-    public ResponseEntity<Void> suspend(@PathVariable Long id, @RequestParam(required = false) String reason) {
-        hotelService.suspend(id, reason);
-        return ResponseEntity.ok().build();
+    public ResponseEntity<ApiResponse<Void>> suspend(@PathVariable Long id, @RequestParam(required = false) String reason) {
+        try {
+            hotelService.suspend(id, reason);
+            return ResponseEntity.ok(ApiResponse.ok(null));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(ApiResponse.fail("정지 처리 중 오류가 발생했습니다: " + e.getMessage()));
+        }
     }
     
     public static record StatusUpdateRequest(String status, String reason) {}
@@ -74,16 +104,19 @@ public class AdminHotelController {
         try {
             String status = request.status();
             String reason = request.reason();
-            
+
             switch (status) {
                 case "APPROVED":
                     Long adminUserId = null;
                     var auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
-                    if (auth != null && auth.getPrincipal() instanceof String) {
-                        String email = (String) auth.getPrincipal();
+                    if (auth != null && auth.getPrincipal() instanceof org.springframework.security.core.userdetails.User) {
+                        org.springframework.security.core.userdetails.User user = (org.springframework.security.core.userdetails.User) auth.getPrincipal();
+                        String email = user.getUsername();
                         var userOpt = userRepository.findByEmail(email);
                         adminUserId = userOpt.map(u -> u.getId()).orElse(null);
                     }
+
+                    // 인증되지 않은 경우에도 시스템 승인으로 처리
                     hotelService.approve(id, adminUserId, reason);
                     break;
                 case "REJECTED":
@@ -95,10 +128,12 @@ public class AdminHotelController {
                 default:
                     return ResponseEntity.badRequest().body(ApiResponse.fail("Invalid status: " + status));
             }
-            
+
             return ResponseEntity.ok(ApiResponse.ok(null));
+        } catch (IllegalStateException e) {
+            return ResponseEntity.badRequest().body(ApiResponse.fail(e.getMessage()));
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(ApiResponse.fail("Status update failed: " + e.getMessage()));
+            return ResponseEntity.status(500).body(ApiResponse.fail("상태 업데이트 중 오류가 발생했습니다: " + e.getMessage()));
         }
     }
 }

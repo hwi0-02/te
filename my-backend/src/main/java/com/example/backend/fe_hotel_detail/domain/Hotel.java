@@ -10,6 +10,8 @@ import lombok.*;
 
 @Entity @Table(name = "hotel")
 @Getter @Setter @NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class Hotel {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -49,10 +51,12 @@ public class Hotel {
     private java.time.LocalDateTime approvalDate;
 
     @Column(name = "approved_by")
-    private Long approvedBy;
+    private Long approvedBy; // null 허용 (시스템 승인 가능)
 
     @Lob
     @Column(name = "rejection_reason")
     private String rejectionReason;
+
+    // Lombok @Builder will generate builder() method automatically.
 
 }

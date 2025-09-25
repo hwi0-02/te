@@ -19,18 +19,24 @@ public class HotelAdminDto {
     LocalDateTime approvalDate;
     Long approvedBy;
     String rejectionReason;
-    
-    // 추가 정보 (조인 또는 계산으로 얻는 값들)
+    LocalDateTime createdAt;
+
+    // 사업자 정보 (조인해서 가져옴)
     String businessName;
     String businessEmail;
-    String city;
+    String businessPhone;
+
+    // 통계 정보 (계산해서 가져옴)
     Integer roomCount;
     Integer reservationCount;
     Double averageRating;
     Long totalRevenue;
-    LocalDateTime createdAt;
 
-    public static HotelAdminDto from(Hotel hotel) {
+    // 추가 정보
+    String city;
+
+    public static HotelAdminDto from(Hotel hotel, String businessName, String businessEmail, String businessPhone,
+                                   Integer roomCount, Integer reservationCount, Double averageRating, Long totalRevenue) {
         return HotelAdminDto.builder()
                 .id(hotel.getId())
                 .name(hotel.getName())
@@ -42,18 +48,18 @@ public class HotelAdminDto {
                 .approvalDate(hotel.getApprovalDate())
                 .approvedBy(hotel.getApprovedBy())
                 .rejectionReason(hotel.getRejectionReason())
-                // 기본값 설정 (실제로는 서비스에서 조인/계산해서 설정)
-                .businessName("N/A")
-                .businessEmail("N/A")
+                .createdAt(hotel.getCreatedAt())
+                .businessName(businessName != null ? businessName : "N/A")
+                .businessEmail(businessEmail != null ? businessEmail : "N/A")
+                .businessPhone(businessPhone != null ? businessPhone : "N/A")
                 .city(extractCity(hotel.getAddress()))
-                .roomCount(0)
-                .reservationCount(0)
-                .averageRating(0.0)
-                .totalRevenue(0L)
-                .createdAt(LocalDateTime.now())
+                .roomCount(roomCount != null ? roomCount : 0)
+                .reservationCount(reservationCount != null ? reservationCount : 0)
+                .averageRating(averageRating != null ? averageRating : 0.0)
+                .totalRevenue(totalRevenue != null ? totalRevenue : 0L)
                 .build();
     }
-    
+
     private static String extractCity(String address) {
         if (address == null) return "N/A";
         // 간단한 도시 추출 로직 (예: "서울 강남구 언주로 640" -> "서울")

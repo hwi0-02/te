@@ -45,4 +45,49 @@ public interface HotelRepository extends JpaRepository<Hotel, Long> {
 	    "ORDER BY x.cnt DESC LIMIT 5",
 	    nativeQuery = true)
     List<Object[]> getTopHotelsByReservations(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end, Pageable pageable);
+
+    // 사업자 정보와 통계 정보를 함께 가져오는 쿼리
+    @Query(value = """
+	    SELECT h.id, h.name, h.address, h.description, h.country, h.star_rating,
+	           h.approval_status, h.approval_date, h.approved_by, h.rejection_reason, h.created_at,
+	           u.name as business_name, u.email as business_email, u.phone as business_phone,
+	           COALESCE(room_stats.room_count, 0) as room_count,
+	           COALESCE(res_stats.reservation_count, 0) as reservation_count,
+	           COALESCE(rating_stats.avg_rating, 0.0) as average_rating,
+	           COALESCE(revenue_stats.total_revenue, 0) as total_revenue
+	    FROM hotel h
+	    LEFT JOIN app_user u ON h.user_id = u.id
+	    LEFT JOIN (SELECT hotel_id, COUNT(*) as room_count FROM room GROUP BY hotel_id) room_stats ON h.id = room_stats.hotel_id
+	    LEFT JOIN (SELECT r.hotel_id, COUNT(res.id) as reservation_count
+	               FROM room r JOIN reservation res ON r.id = res.room_id
+	               GROUP BY r.hotel_id) res_stats ON h.id = res_stats.hotel_id
+	    LEFT JOIN (SELECT r.hotel_id, AVG(rev.star_rating) as avg_rating
+	               FROM room r JOIN reservation res ON r.id = res.room_id
+	               JOIN review rev ON res.id = rev.reservation_id
+	               GROUP BY r.hotel_id) rating_stats ON h.id = rating_stats.hotel_id
+	    LEFT JOIN (SELECT r.hotel_id, SUM(p.total_price) as total_revenue
+	               FROM room r JOIN reservation res ON r.id = res.room_id
+	               JOIN payment p ON res.id = p.reservation_id AND p.status = 'PAID'
+	               GROUP BY r.hotel_id) revenue_stats ON h.id = revenue_stats.hotel_id
+	    WHERE (:status IS NULL OR h.approval_status = :status)
+	    AND (:name IS NULL OR h.name LIKE CONCAT('%', :name, '%'))
+	    AND (:minStar IS NULL OR h.star_rating >= :minStar)
+	    ORDER BY h.id DESC
+	    """, nativeQuery = true)
+    List<Object[]> findHotelsWithBusinessInfo(@Param("status") String status,
+                                            @Param("name") String name,
+                                            @Param("minStar") Integer minStar);
+
+    // 특정 호텔의 상세 통계 정보
+    @Query(value = """
+	    SELECT
+	        (SELECT COUNT(*) FROM room WHERE hotel_id = h.id) as total_rooms,
+	        (SELECT COUNT(*) FROM reservation res JOIN room r ON res.room_id = r.id WHERE r.hotel_id = h.id) as total_reservations,
+	        (SELECT AVG(rev.star_rating) FROM review rev JOIN reservation res ON rev.reservation_id = res.id
+	         JOIN room r ON res.room_id = r.id WHERE r.hotel_id = h.id) as average_rating,
+	        (SELECT SUM(p.total_price) FROM payment p JOIN reservation res ON p.reservation_id = res.id
+	         JOIN room r ON res.room_id = r.id WHERE r.hotel_id = h.id AND p.status = 'PAID') as total_revenue
+	    FROM hotel h WHERE h.id = :hotelId
+	    """, nativeQuery = true)
+    Object[] findHotelStats(@Param("hotelId") Long hotelId);
 }

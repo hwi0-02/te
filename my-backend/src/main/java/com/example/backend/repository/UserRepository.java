@@ -16,7 +16,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     Optional<User> findByEmail(String email);
 
-       long countByRole(Role role);
+    long countByRole(Role role);
 
     @Query("SELECT u FROM User u WHERE (:name IS NULL OR u.name LIKE CONCAT('%', :name, '%')) " +
            "AND (:email IS NULL OR u.email LIKE CONCAT('%', :email, '%')) " +
