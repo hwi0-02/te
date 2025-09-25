@@ -50,6 +50,8 @@ public class SecurityConfig {
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(HttpMethod.OPTIONS, "/api/**").permitAll()
+                .requestMatchers("/api/admin/health/**").permitAll() // 헬스체크는 public
+                .requestMatchers("/api/admin/test").permitAll() // 테스트는 public
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 // Public auth endpoints for API
                 .requestMatchers(HttpMethod.POST, "/api/users/register", "/api/users/login").permitAll()

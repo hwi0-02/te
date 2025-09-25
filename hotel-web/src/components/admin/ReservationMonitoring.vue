@@ -184,6 +184,7 @@
 
 <script>
 import { ref, reactive, onMounted } from 'vue'
+import axios from '@/api/http.js'
 
 export default {
   name: 'ReservationMonitoring',
@@ -217,27 +218,24 @@ export default {
     // 예약 목록 조회
     const searchReservations = async () => {
       try {
-        const params = new URLSearchParams({
+        const params = {
           page: pagination.currentPage,
           size: pagination.size
-        })
+        }
 
-        if (filters.hotelName) params.append('hotelName', filters.hotelName)
-        if (filters.userName) params.append('userName', filters.userName)
-        if (filters.reservationStatus) params.append('reservationStatus', filters.reservationStatus)
-        if (filters.paymentStatus) params.append('paymentStatus', filters.paymentStatus)
+        if (filters.hotelName) params.hotelName = filters.hotelName
+        if (filters.userName) params.userName = filters.userName
+        if (filters.reservationStatus) params.status = filters.reservationStatus
+        if (filters.paymentStatus) params.paymentStatus = filters.paymentStatus
 
-  const response = await fetch(`/api/admin/reservations?${params}`, {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          }
-        })
-
-        if (!response.ok) throw new Error('예약 목록 조회 실패')
-
-        const data = await response.json()
-        reservations.value = data.content || []
+        const response = await axios.get('/admin/reservations', { params })
+        const data = response.data?.data || {
+          content: [],
+          totalPages: 0,
+          totalElements: 0
+        }
         
+        reservations.value = data.content || []
         pagination.totalPages = data.totalPages || 0
         pagination.totalElements = data.totalElements || 0
 
@@ -276,17 +274,9 @@ export default {
     // 예약 상세 보기
     const viewReservationDetail = async (reservation) => {
       try {
-  const response = await fetch(`/api/admin/reservations/${reservation.reservationId}`, {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          }
-        })
-
-        if (!response.ok) throw new Error('예약 상세 조회 실패')
-
-        selectedReservation.value = await response.json()
+        const response = await axios.get(`/admin/reservations/${reservation.reservationId}`)
+        selectedReservation.value = response.data?.data || {}
         showDetailModal.value = true
-        
       } catch (error) {
         alert('예약 상세 정보를 불러오는데 실패했습니다.')
       }

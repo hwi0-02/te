@@ -18,8 +18,9 @@ public class RoomController {
 
 	@GetMapping
 	public ResponseEntity<ApiResponse<PageResponse<Room>>> list(@RequestParam(required = false) Long hotelId,
-																Pageable pageable) {
-		Page<Room> page = roomService.list(hotelId, pageable);
+								@RequestParam(required = false) String name,
+								Pageable pageable) {
+		Page<Room> page = roomService.list(hotelId, name, pageable);
 		return ResponseEntity.ok(ApiResponse.ok(PageResponse.of(page)));
 	}
 

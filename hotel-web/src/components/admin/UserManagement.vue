@@ -68,7 +68,7 @@
             <td>
               <span class="provider-badge">{{ getProviderLabel(row.provider) }}</span>
             </td>
-            <td>{{ formatDate(row.createdAt) }}</td>
+            <td>{{ formatDate(row.createdOn) }}</td>
             <td>
               <select class="role-select" :disabled="row.id === currentUserId" :value="row.role" @change="e => updateUserRole(row, e.target.value)">
                 <option value="USER">일반 사용자</option>
@@ -121,23 +121,18 @@ export default {
     async loadUsers() {
       this.loading = true;
       try {
-        const params = {
-          page: this.currentPage,
-          size: this.pageSize
-        };
-        
+        const params = { page: this.currentPage, size: this.pageSize };
         if (this.searchForm.name) params.name = this.searchForm.name;
         if (this.searchForm.email) params.email = this.searchForm.email;
         if (this.searchForm.role) params.role = this.searchForm.role;
-        
+
         const response = await api.get('/admin/users', { params });
-        
-        const data = response.data;
-        this.users = data.content;
-        this.totalPages = data.totalPages;
-        this.totalElements = data.totalElements;
-        this.currentPage = data.number;
-        
+        const envelope = response.data;   // { success, data, error }
+        const page = envelope?.data;      // PageResponse
+        this.users = page?.content || [];
+        this.totalPages = page?.totalPages || 0;
+        this.totalElements = page?.totalElements || 0;
+        this.currentPage = page?.number || 0;
       } catch (error) {
         alert('사용자 목록을 불러오는데 실패했습니다.');
       } finally {

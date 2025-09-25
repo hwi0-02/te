@@ -1,5 +1,6 @@
 package com.example.backend.admin.service;
 
+import com.example.backend.dto.HotelAdminDto;
 import com.example.backend.fe_hotel_detail.domain.Hotel;
 import com.example.backend.fe_hotel_detail.repository.HotelRepository;
 import lombok.RequiredArgsConstructor;
@@ -12,18 +13,21 @@ import org.springframework.stereotype.Service;
 public class AdminHotelService {
     private final HotelRepository hotelRepository;
 
-    public Page<Hotel> list(String name, Integer minStar, Hotel.ApprovalStatus status, Pageable pageable) {
+    public Page<HotelAdminDto> list(String name, Integer minStar, Hotel.ApprovalStatus status, Pageable pageable) {
+        Page<Hotel> hotels;
         if (status != null) {
-            return hotelRepository.searchByApproval(status.name(), name, minStar, pageable);
+            hotels = hotelRepository.searchByApproval(status.name(), name, minStar, pageable);
+        } else if (name != null || minStar != null) {
+            hotels = hotelRepository.search(name, minStar, pageable);
+        } else {
+            hotels = hotelRepository.findAll(pageable);
         }
-        if (name != null || minStar != null) {
-            return hotelRepository.search(name, minStar, pageable);
-        }
-        return hotelRepository.findAll(pageable);
+        return hotels.map(HotelAdminDto::from);
     }
 
-    public Hotel get(Long id) {
-        return hotelRepository.findById(id).orElseThrow();
+    public HotelAdminDto get(Long id) {
+        Hotel hotel = hotelRepository.findById(id).orElseThrow();
+        return HotelAdminDto.from(hotel);
     }
 
     public void delete(Long id) {

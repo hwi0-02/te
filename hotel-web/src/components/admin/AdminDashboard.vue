@@ -58,7 +58,7 @@
   <div class="charts-section">
       <div class="chart-container" v-if="chartOptions.showRevenue">
         <div class="chart-header">
-          <h3>최근 30일 매출 추이</h3>
+          <h3>최근 {{ detailParams.days }}일 매출 추이</h3>
         </div>
         <div class="chart-content">
           <Line
@@ -75,7 +75,7 @@
 
       <div class="chart-container" v-if="chartOptions.showSignups">
         <div class="chart-header">
-          <h3>최근 12개월 신규 가입자</h3>
+          <h3>{{ detailParams.year }}년 월별 신규 가입자</h3>
         </div>
         <div class="chart-content">
           <Bar
@@ -93,42 +93,22 @@
 
   <div class="top-hotels-section" v-if="chartOptions.showTopHotels">
       <div class="section-header">
-  <h3>인기 호텔 Top 5 (최근 30일)</h3>
+  <h3>상위 호텔 Top {{ detailParams.top }} (연간 매출)</h3>
       </div>
       <div class="top-hotels-list">
-        <div 
-          v-for="(hotel, index) in dashboardData.topHotels" 
-          :key="hotel.hotelId"
-          class="hotel-item"
-          :class="`rank-${index + 1}`"
-        >
-          <div class="hotel-rank">
-            <span class="rank-number">{{ index + 1 }}</span>
-            
-          </div>
+        <div v-for="(hotel, index) in dashboardData.topHotels" :key="hotel.hotelId" class="hotel-item" :class="`rank-${index + 1}`">
+          <div class="hotel-rank"><span class="rank-number">{{ index + 1 }}</span></div>
           <div class="hotel-info">
             <h4>{{ hotel.hotelName }}</h4>
-            <p class="business-name">{{ hotel.businessName }}</p>
           </div>
           <div class="hotel-stats">
-            <div class="stat">
-              <span class="label">예약</span>
-              <span class="value">{{ formatNumber(hotel.reservationCount) }}건</span>
-            </div>
             <div class="stat">
               <span class="label">매출</span>
               <span class="value">{{ formatCurrency(hotel.revenue) }}</span>
             </div>
-            <div class="stat">
-              <span class="label">평점</span>
-              <span class="value">{{ hotel.averageRating.toFixed(1) }}</span>
-            </div>
           </div>
         </div>
-        
-        <div v-if="dashboardData.topHotels.length === 0" class="no-data">
-      최근 30일간 예약 데이터가 없습니다.
-        </div>
+        <div v-if="dashboardData.topHotels.length === 0" class="no-data">데이터가 없습니다.</div>
       </div>
     </div>
 
@@ -198,9 +178,16 @@ export default {
       totalRevenue: 0,
       totalReviews: 0,
       totalCoupons: 0,
-      dailyRevenues: [],
+      dailyRevenue: [],
       monthlySignups: [],
-      topHotels: []
+      topHotels: [],
+      dailySignups: []
+    })
+
+    const detailParams = reactive({
+      days: 14,
+      top: 5,
+      year: new Date().getFullYear()
     })
     
     const revenueChartData = ref(null)
@@ -327,14 +314,32 @@ export default {
     const loadDashboardData = async () => {
       loading.value = true
       try {
-  const response = await api.get('/admin/dashboard/summary')
-  const data = response.data || {}
+        const [summaryRes, detailRes] = await Promise.all([
+          api.get('/admin/dashboard/summary'),
+          api.get('/admin/dashboard/details', { params: { days: detailParams.days, top: detailParams.top, year: detailParams.year } })
+        ])
+        const summaryEnv = summaryRes.data || {}
+        const summary = summaryEnv?.data || {}
+        const detailEnv = detailRes.data || {}
+        const detail = detailEnv?.data || {}
 
         // 기본 통계 데이터 설정
-        Object.assign(dashboardData, data)
+  dashboardData.totalUsers = summary.totalUsers || 0
+  dashboardData.totalBusinesses = summary.totalBusinesses || 0
+        dashboardData.totalReservations = summary.totalReservations || 0
+  dashboardData.totalRevenue = summary.totalRevenue || summary.recentRevenue || 0
+  dashboardData.totalReviews = summary.totalReviews || 0
+  dashboardData.totalCoupons = summary.totalCoupons || 0
+        dashboardData.pendingInquiries = summary.pendingInquiries || 0
+
+        // 상세 데이터 매핑
+        dashboardData.dailyRevenue = Array.isArray(detail.dailyRevenue) ? detail.dailyRevenue : []
+        dashboardData.dailySignups = Array.isArray(detail.dailySignups) ? detail.dailySignups : []
+        dashboardData.monthlySignups = Array.isArray(detail.monthlySignups) ? detail.monthlySignups : []
+        dashboardData.topHotels = Array.isArray(detail.topHotels) ? detail.topHotels : []
 
         // 매출 차트 데이터 설정
-        const daily = Array.isArray(data.dailyRevenues) ? data.dailyRevenues : []
+        const daily = dashboardData.dailyRevenue
         revenueChartData.value = {
           labels: daily.map(item => 
             new Date(item.date).toLocaleDateString('ko-KR', { 
@@ -345,7 +350,7 @@ export default {
           datasets: [
             {
               label: '일별 매출',
-              data: daily.map(item => Number(item.revenue ?? 0)),
+              data: daily.map(item => Number(item.value ?? 0)),
               borderColor: 'rgb(75, 192, 192)',
               backgroundColor: 'rgba(75, 192, 192, 0.1)',
               fill: true,
@@ -355,22 +360,15 @@ export default {
         }
 
         // 가입자 차트 데이터 설정
-        const monthly = Array.isArray(data.monthlySignups) ? data.monthlySignups : []
+        const monthly = dashboardData.monthlySignups
         signupChartData.value = {
           labels: monthly.map(item => item.month),
           datasets: [
             {
-              label: '사용자',
-              data: monthly.map(item => Math.round(Number(item.userCount ?? 0))),
+              label: '가입자',
+              data: monthly.map(item => Math.round(Number(item.count ?? 0))),
               backgroundColor: 'rgba(54, 162, 235, 0.8)',
               borderColor: 'rgba(54, 162, 235, 1)',
-              borderWidth: 1
-            },
-            {
-              label: '사업자',
-              data: monthly.map(item => Math.round(Number(item.businessCount ?? 0))),
-              backgroundColor: 'rgba(255, 99, 132, 0.8)',
-              borderColor: 'rgba(255, 99, 132, 1)',
               borderWidth: 1
             }
           ]
@@ -392,8 +390,10 @@ export default {
           api.get('/admin/users', { params: { role: 'USER', page: 0, size: 1 } }),
           api.get('/admin/users', { params: { role: 'BUSINESS', page: 0, size: 1 } })
         ])
-        dashboardData.totalUsers = Number(usersRes.data?.totalElements ?? 0)
-        dashboardData.totalBusinesses = Number(businessRes.data?.totalElements ?? 0)
+        const usersPage = usersRes.data?.data
+        const businessPage = businessRes.data?.data
+        dashboardData.totalUsers = Number(usersPage?.totalElements ?? 0)
+        dashboardData.totalBusinesses = Number(businessPage?.totalElements ?? 0)
       } catch (e) {
         // 무시: 서버가 해당 필터를 지원하지 않으면 기존 값을 유지
       }
@@ -449,6 +449,7 @@ export default {
       // 반응형 데이터
       loading,
       lastUpdated,
+      detailParams,
       dashboardData,
       revenueChartData,
       signupChartData,

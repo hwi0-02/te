@@ -12,8 +12,14 @@ import org.springframework.stereotype.Service;
 public class AdminRoomService {
     private final RoomRepository roomRepository;
 
-    public Page<Room> list(Long hotelId, Pageable pageable) {
-        if (hotelId != null) return roomRepository.findByHotelId(hotelId, pageable);
+    public Page<Room> list(Long hotelId, String name, Pageable pageable) {
+        if (hotelId != null && name != null) {
+            return roomRepository.findByHotelIdAndNameContaining(hotelId, name, pageable);
+        } else if (hotelId != null) {
+            return roomRepository.findByHotelId(hotelId, pageable);
+        } else if (name != null) {
+            return roomRepository.findByNameContaining(name, pageable);
+        }
         return roomRepository.findAll(pageable);
     }
 

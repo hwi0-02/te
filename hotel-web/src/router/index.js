@@ -31,6 +31,7 @@ import PaymentManagement from '@/components/admin/PaymentManagement.vue'
 import ReviewManagement from '@/components/admin/ReviewManagement.vue'
 import CouponManagement from '@/components/admin/CouponManagement.vue'
 import SalesManagement from '@/components/admin/SalesManagement.vue'
+import HotelManagement from '@/components/admin/HotelManagement.vue'
 
 const routes = [
   { path: "/", component: MainPage },
@@ -73,7 +74,7 @@ const routes = [
       { path: '', redirect: '/admin/dashboard' },
       { path: 'dashboard', component: AdminDashboard },
       { path: 'users', component: UserManagement },
-      { path: 'businesses', component: AdminHotelManagement },
+      { path: 'businesses', component: HotelManagement },
       { path: 'hotels', component: AdminHotelManagement },
       { path: 'reservations', component: ReservationMonitoring },
       { path: 'payments', component: PaymentManagement },

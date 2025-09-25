@@ -10,4 +10,6 @@ import org.springframework.data.repository.query.Param;
 public interface InquiryRepository extends JpaRepository<Inquiry, Long> {
     @Query("SELECT i FROM Inquiry i WHERE (:status IS NULL OR i.status = :status)")
     Page<Inquiry> search(@Param("status") Inquiry.Status status, Pageable pageable);
+    
+    long countByStatus(Inquiry.Status status);
 }

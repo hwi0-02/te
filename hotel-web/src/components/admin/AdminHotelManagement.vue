@@ -99,7 +99,7 @@
             <td>{{ hotel.roomCount }}</td>
             <td>{{ hotel.reservationCount }}</td>
             <td>
-              <div class="rating">{{ hotel.averageRating.toFixed(1) }}</div>
+              <div class="rating">{{ hotel.averageRating ? hotel.averageRating.toFixed(1) : '0.0' }}</div>
             </td>
             <td>{{ formatCurrency(hotel.totalRevenue) }}</td>
             <td>
@@ -230,7 +230,7 @@
                 </div>
                 <div class="detail-item">
                   <label>평균 평점:</label>
-                  <span>{{ selectedHotel.averageRating.toFixed(1) }}</span>
+                  <span>{{ selectedHotel.averageRating ? selectedHotel.averageRating.toFixed(1) : '0.0' }}</span>
                 </div>
                 <div class="detail-item">
                   <label>총 매출:</label>
@@ -368,8 +368,15 @@ export default {
         if (filters.status) params.status = filters.status
         if (filters.city) params.city = filters.city
 
-  const response = await axios.get('/admin/hotels', { params })
-        hotels.value = response.data
+        const response = await axios.get('/admin/hotels', { params })
+        hotels.value = response.data?.data || {
+          content: [],
+          totalPages: 0,
+          totalElements: 0,
+          number: 0,
+          first: true,
+          last: true
+        }
         
         updateStats()
       } catch (error) {
@@ -398,8 +405,8 @@ export default {
 
     const viewHotelDetail = async (hotel) => {
       try {
-  const response = await axios.get(`/admin/hotels/${hotel.id}`)
-        selectedHotel.value = response.data
+        const response = await axios.get(`/admin/hotels/${hotel.id}`)
+        selectedHotel.value = response.data?.data || {}
         showDetailModal.value = true
       } catch (error) {
         alert('호텔 상세 정보를 불러오는데 실패했습니다.')

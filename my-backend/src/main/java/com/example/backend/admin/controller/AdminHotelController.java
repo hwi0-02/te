@@ -2,6 +2,7 @@ package com.example.backend.admin.controller;
 
 import com.example.backend.admin.service.AdminHotelService;
 import com.example.backend.dto.ApiResponse;
+import com.example.backend.dto.HotelAdminDto;
 import com.example.backend.dto.PageResponse;
 import com.example.backend.fe_hotel_detail.domain.Hotel;
 import com.example.backend.repository.UserRepository;
@@ -21,21 +22,16 @@ public class AdminHotelController {
     private final UserRepository userRepository;
 
     @GetMapping
-    public ResponseEntity<ApiResponse<PageResponse<Hotel>>> list(@RequestParam(required = false) String name,
+    public ResponseEntity<ApiResponse<PageResponse<HotelAdminDto>>> list(@RequestParam(required = false) String name,
                                             @RequestParam(required = false) Integer minStar,
                                             @RequestParam(required = false) Hotel.ApprovalStatus status,
                                             Pageable pageable) {
-        Page<Hotel> page;
-        if (status != null) {
-            page = hotelService.list(name, minStar, status, pageable);
-        } else {
-            page = hotelService.list(name, minStar, null, pageable);
-        }
+        Page<HotelAdminDto> page = hotelService.list(name, minStar, status, pageable);
         return ResponseEntity.ok(ApiResponse.ok(PageResponse.of(page)));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<Hotel>> detail(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<HotelAdminDto>> detail(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.ok(hotelService.get(id)));
     }
 
@@ -69,5 +65,40 @@ public class AdminHotelController {
     public ResponseEntity<Void> suspend(@PathVariable Long id, @RequestParam(required = false) String reason) {
         hotelService.suspend(id, reason);
         return ResponseEntity.ok().build();
+    }
+    
+    public static record StatusUpdateRequest(String status, String reason) {}
+    
+    @PutMapping("/{id}/status")
+    public ResponseEntity<ApiResponse<Void>> updateStatus(@PathVariable Long id, @RequestBody StatusUpdateRequest request) {
+        try {
+            String status = request.status();
+            String reason = request.reason();
+            
+            switch (status) {
+                case "APPROVED":
+                    Long adminUserId = null;
+                    var auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+                    if (auth != null && auth.getPrincipal() instanceof String) {
+                        String email = (String) auth.getPrincipal();
+                        var userOpt = userRepository.findByEmail(email);
+                        adminUserId = userOpt.map(u -> u.getId()).orElse(null);
+                    }
+                    hotelService.approve(id, adminUserId, reason);
+                    break;
+                case "REJECTED":
+                    hotelService.reject(id, reason);
+                    break;
+                case "SUSPENDED":
+                    hotelService.suspend(id, reason);
+                    break;
+                default:
+                    return ResponseEntity.badRequest().body(ApiResponse.fail("Invalid status: " + status));
+            }
+            
+            return ResponseEntity.ok(ApiResponse.ok(null));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(ApiResponse.fail("Status update failed: " + e.getMessage()));
+        }
     }
 }

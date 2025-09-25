@@ -12,17 +12,17 @@ import java.util.List;
 
 public interface HotelRepository extends JpaRepository<Hotel, Long> {
 
-    @Query(value = "SELECT * FROM Hotel h WHERE (:name IS NULL OR h.name LIKE CONCAT('%',:name,'%')) " +
+    @Query(value = "SELECT * FROM hotel h WHERE (:name IS NULL OR h.name LIKE CONCAT('%',:name,'%')) " +
 	    "AND (:minStar IS NULL OR h.star_rating >= :minStar)",
-	    countQuery = "SELECT COUNT(*) FROM Hotel h WHERE (:name IS NULL OR h.name LIKE CONCAT('%',:name,'%')) " +
+	    countQuery = "SELECT COUNT(*) FROM hotel h WHERE (:name IS NULL OR h.name LIKE CONCAT('%',:name,'%')) " +
 		    "AND (:minStar IS NULL OR h.star_rating >= :minStar)",
 	    nativeQuery = true)
     Page<Hotel> search(@Param("name") String name, @Param("minStar") Integer minStar, Pageable pageable);
 
-    @Query(value = "SELECT * FROM Hotel h WHERE (:status IS NULL OR h.approval_status = :status) " +
+    @Query(value = "SELECT * FROM hotel h WHERE (:status IS NULL OR h.approval_status = :status) " +
 	    "AND (:name IS NULL OR h.name LIKE CONCAT('%',:name,'%')) " +
 	    "AND (:minStar IS NULL OR h.star_rating >= :minStar)",
-	    countQuery = "SELECT COUNT(*) FROM Hotel h WHERE (:status IS NULL OR h.approval_status = :status) " +
+	    countQuery = "SELECT COUNT(*) FROM hotel h WHERE (:status IS NULL OR h.approval_status = :status) " +
 		    "AND (:name IS NULL OR h.name LIKE CONCAT('%',:name,'%')) " +
 		    "AND (:minStar IS NULL OR h.star_rating >= :minStar)",
 	    nativeQuery = true)
@@ -32,16 +32,16 @@ public interface HotelRepository extends JpaRepository<Hotel, Long> {
 				 Pageable pageable);
 
     @Query(value = "SELECT h.id, h.name, bname, cnt, revenue, avg_rating FROM (\n" +
-	    "  SELECT r.id as hotel_id, COUNT(res.id) as cnt, SUM(p.total_price) as revenue\n" +
-	    "  FROM Room r\n" +
-	    "  JOIN Reservation res ON res.room_id = r.id\n" +
-	    "  LEFT JOIN Payment p ON p.reservation_id = res.id\n" +
+	    "  SELECT r.hotel_id as hotel_id, COUNT(res.id) as cnt, SUM(p.total_price) as revenue\n" +
+	    "  FROM room r\n" +
+	    "  JOIN reservation res ON res.room_id = r.id\n" +
+	    "  LEFT JOIN payment p ON p.reservation_id = res.id\n" +
 	    "  WHERE res.created_at BETWEEN :start AND :end\n" +
-	    "  GROUP BY r.id\n" +
+	    "  GROUP BY r.hotel_id\n" +
 	    ") x\n" +
-	    "JOIN Hotel h ON h.id = x.hotel_id\n" +
-	    "LEFT JOIN (SELECT reservation_id, AVG(star_rating) as avg_rating FROM Review GROUP BY reservation_id) rv ON 1=1\n" +
-	    "LEFT JOIN (SELECT id, name as bname FROM Hotel) hb ON hb.id = h.id\n" +
+	    "JOIN hotel h ON h.id = x.hotel_id\n" +
+	    "LEFT JOIN (SELECT reservation_id, AVG(star_rating) as avg_rating FROM review GROUP BY reservation_id) rv ON 1=1\n" +
+	    "LEFT JOIN (SELECT id, name as bname FROM hotel) hb ON hb.id = h.id\n" +
 	    "ORDER BY x.cnt DESC LIMIT 5",
 	    nativeQuery = true)
     List<Object[]> getTopHotelsByReservations(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end, Pageable pageable);

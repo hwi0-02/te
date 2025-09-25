@@ -4,6 +4,8 @@ import com.example.backend.authlogin.domain.User;
 import lombok.Builder;
 import lombok.Value;
 
+import java.time.LocalDateTime;
+
 @Value
 @Builder
 public class UserAdminDto {
@@ -11,7 +13,11 @@ public class UserAdminDto {
     String name;
     String email;
     String phone;
-    String role;
+    String role;              // USER / ADMIN / BUSINESS
+    String provider;          // LOCAL / NAVER / GOOGLE / KAKAO
+    Boolean active;           // raw active flag
+    String status;            // Derived: ACTIVE / INACTIVE
+    LocalDateTime createdOn;  // registration date
 
     public static UserAdminDto from(User u) {
         return UserAdminDto.builder()
@@ -20,6 +26,10 @@ public class UserAdminDto {
                 .email(u.getEmail())
                 .phone(u.getPhone())
                 .role(u.getRole() != null ? u.getRole().name() : null)
+                .provider(u.getProvider() != null ? u.getProvider().name() : null)
+                .active(u.getActive())
+                .status(Boolean.TRUE.equals(u.getActive()) ? "ACTIVE" : "INACTIVE")
+                .createdOn(u.getCreatedOn())
                 .build();
     }
 }

@@ -17,6 +17,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/admin/coupons")
 @RequiredArgsConstructor
+@CrossOrigin(origins = "http://localhost:5173")
 public class AdminCouponController {
     private final AdminCouponService couponService;
 
