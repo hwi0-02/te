@@ -30,4 +30,18 @@ public class Review {
 
     @Lob
     private String image;
+    
+    // 관리자용 필드 (추가 기능용)
+    @Column(name = "is_reported", nullable = false)
+    private Boolean isReported = false;
+    
+    @Column(name = "is_hidden", nullable = false)
+    private Boolean isHidden = false;
+    
+    @Lob
+    @Column(name = "admin_reply")
+    private String adminReply;
+    
+    @Column(name = "replied_at")
+    private LocalDateTime repliedAt;
 }

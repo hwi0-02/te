@@ -224,7 +224,7 @@ export default {
           to: dateRange.to
         })
 
-  const response = await fetch(`/api/admin/sales?${params}`, {
+        const response = await fetch(`/api/admin/stats/sales?${params}`, {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('token')}`
           }

@@ -313,12 +313,13 @@ export default {
         }
         if (this.selectedStatus) params.status = this.selectedStatus
 
-        const { data } = await http.get('/admin/businesses', { params })
+        const resp = await http.get('/admin/hotels', { params })
+        const page = resp?.data?.data || {}
 
-        this.businesses = data.content || []
-        this.totalPages = data.totalPages || 0
-        this.totalElements = data.totalElements || 0
-        this.currentPage = data.number || 0
+        this.businesses = page.content || []
+        this.totalPages = page.totalPages || 0
+        this.totalElements = page.totalElements || 0
+        this.currentPage = (page.page ?? page.number ?? 0)
       } catch (error) {
   // 오류는 알림으로만 처리
         let msg = '사업자 목록을 불러오는데 실패했습니다.'
@@ -341,7 +342,7 @@ export default {
       try {
         const statuses = ['PENDING', 'APPROVED', 'REJECTED', 'SUSPENDED']
         const requests = statuses.map(status =>
-          http.get('/admin/businesses', { params: { status, page: 0, size: 1 } })
+          http.get('/admin/hotels', { params: { status, page: 0, size: 1 } })
         )
   const results = await Promise.allSettled(requests)
 
@@ -355,8 +356,8 @@ export default {
         results.forEach((res, idx) => {
           const key = statuses[idx]
           if (res.status === 'fulfilled') {
-            const data = res.value?.data || {}
-            totals[key] = data.totalElements ?? 0
+            const page = res.value?.data?.data || {}
+            totals[key] = page.totalElements ?? 0
           } else {
             // 상태 카운트 조회 실패는 무시하고 0으로 처리
           }
@@ -385,8 +386,8 @@ export default {
       try {
         // 사전 인증 확인
         try {
-          const who = await http.get('/auth/whoami')
-          if (who?.data?.authorities?.includes?.('ROLE_ADMIN') !== true) {
+          const who = await http.get('/user/info')
+          if (who?.data?.role !== 'ADMIN') {
             alert('관리자 권한이 필요합니다. 다시 로그인해주세요.')
             this.$router.push('/login')
             return
@@ -399,7 +400,7 @@ export default {
           }
         }
 
-        await http.put(`/admin/businesses/${business.id}/status`, { status: newStatus })
+        await http.put(`/admin/hotels/${business.id}/status`, { status: newStatus })
 
         // 로컬 데이터 업데이트
         business.status = newStatus

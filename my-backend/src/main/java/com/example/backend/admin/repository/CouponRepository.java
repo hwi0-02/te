@@ -11,6 +11,23 @@ public interface CouponRepository extends JpaRepository<Coupon, Long> {
     boolean existsByCode(String code);
     boolean existsByCodeAndIdNot(String code, Long id);
 
-    @Query("SELECT c FROM Coupon c WHERE (:active IS NULL OR c.isActive = :active)")
-    Page<Coupon> search(@Param("active") Boolean active, Pageable pageable);
+    @Query("SELECT c FROM Coupon c WHERE (:active IS NULL OR c.isActive = :active) " +
+           "AND (:discountType IS NULL OR c.discountType = :discountType) " +
+           "AND (:code IS NULL OR c.code LIKE CONCAT('%', :code, '%')) " +
+           "AND (:name IS NULL OR c.name LIKE CONCAT('%', :name, '%'))")
+    Page<Coupon> search(@Param("active") Boolean active,
+                       @Param("discountType") Coupon.DiscountType discountType,
+                       @Param("code") String code,
+                       @Param("name") String name,
+                       Pageable pageable);
+
+    // 쿠폰 통계 조회
+    @Query("SELECT COUNT(c) FROM Coupon c WHERE c.isActive = true")
+    Long countActiveCoupons();
+
+    @Query("SELECT COUNT(c) FROM Coupon c WHERE c.isActive = false")
+    Long countInactiveCoupons();
+
+    @Query("SELECT COUNT(c) FROM Coupon c WHERE c.validTo < CURRENT_TIMESTAMP")
+    Long countExpiredCoupons();
 }

@@ -20,21 +20,16 @@
           <label>예약 상태</label>
           <select v-model="filters.reservationStatus" class="search-select">
             <option value="">전체</option>
-            <option value="PENDING">대기중</option>
-            <option value="CONFIRMED">확정</option>
-            <option value="CHECKED_IN">체크인</option>
-            <option value="CHECKED_OUT">체크아웃</option>
-            <option value="CANCELLED">취소</option>
-            <option value="NO_SHOW">노쇼</option>
+            <option value="PENDING">예약 대기</option>
+            <option value="COMPLETED">예약 확정</option>
+            <option value="CANCELLED">예약 취소</option>
           </select>
         </div>
         <div class="search-group">
           <label>결제 상태</label>
           <select v-model="filters.paymentStatus" class="search-select">
             <option value="">전체</option>
-            <option value="PENDING">결제대기</option>
-            <option value="COMPLETED">결제완료</option>
-            <option value="FAILED">결제실패</option>
+            <option value="PAID">결제완료</option>
             <option value="CANCELLED">결제취소</option>
             <option value="REFUNDED">환불완료</option>
           </select>
@@ -235,7 +230,30 @@ export default {
           totalElements: 0
         }
         
-        reservations.value = data.content || []
+        const items = Array.isArray(data.content) ? data.content : []
+        // BE ReservationDetailDto -> UI 행 변환 (실제 데이터 매핑)
+        reservations.value = items.map(r => ({
+          reservationId: r.reservationId,
+          hotelName: r.hotelName || '-',
+          roomName: r.roomName || '-',
+          roomType: r.roomType || '-',
+          userName: r.userName || '-',
+          userEmail: r.userEmail || '',
+          checkInDate: r.startDate,
+          checkOutDate: r.endDate,
+          totalAmount: r.totalPrice ?? 0,
+          reservationStatus: r.reservationStatus || 'PENDING',
+          paymentStatus: r.paymentStatus || (r.paymentId ? 'PAID' : 'NONE'),
+          reservationCreatedAt: r.createdAt,
+          hotelId: r.hotelId,
+          roomId: r.roomId,
+          paymentId: r.paymentId,
+          paymentMethod: r.paymentMethod,
+          paidAmount: r.totalPrice ?? 0,
+          paymentCreatedAt: r.paymentCreatedAt,
+          specialRequests: null,
+          guestCount: (r.numAdult || 0) + (r.numKid || 0)
+        }))
         pagination.totalPages = data.totalPages || 0
         pagination.totalElements = data.totalElements || 0
 
@@ -250,9 +268,9 @@ export default {
     // 통계 업데이트
     const updateStatistics = () => {
       totalReservations.value = reservations.value.length
-      confirmedReservations.value = reservations.value.filter(r => r.reservationStatus === 'CONFIRMED').length
+      confirmedReservations.value = reservations.value.filter(r => r.reservationStatus === 'COMPLETED').length
       cancelledReservations.value = reservations.value.filter(r => r.reservationStatus === 'CANCELLED').length
-      paidReservations.value = reservations.value.filter(r => r.paymentStatus === 'COMPLETED').length
+      paidReservations.value = reservations.value.filter(r => r.paymentStatus === 'PAID').length
     }
 
     // 페이지 변경
@@ -274,11 +292,68 @@ export default {
     // 예약 상세 보기
     const viewReservationDetail = async (reservation) => {
       try {
+        console.log('예약 상세 조회 시작:', reservation.reservationId)
+        
+        if (!reservation.reservationId) {
+          alert('예약 ID가 없습니다.')
+          return
+        }
+        
         const response = await axios.get(`/admin/reservations/${reservation.reservationId}`)
-        selectedReservation.value = response.data?.data || {}
+        console.log('예약 상세 조회 응답:', response.data)
+        
+        const data = response.data?.data || {}
+        
+        if (!data.reservationId) {
+          console.warn('응답 데이터가 비어있음:', data)
+          alert('예약 데이터를 찾을 수 없습니다.')
+          return
+        }
+        
+        // ReservationDetailDto -> 상세 모달용 데이터 변환 (안전한 처리)
+        selectedReservation.value = {
+          reservationId: data.reservationId || reservation.reservationId,
+          transactionId: data.transactionId || '-',
+          reservationStatus: data.reservationStatus || reservation.reservationStatus || 'PENDING',
+          reservationCreatedAt: data.createdAt || reservation.reservationCreatedAt,
+          expiresAt: data.expiresAt || null,
+
+          hotelId: data.hotelId || reservation.hotelId || null,
+          hotelName: data.hotelName || reservation.hotelName || '-',
+          roomId: data.roomId || reservation.roomId,
+          roomName: data.roomName || reservation.roomName || '-',
+          roomType: data.roomType || reservation.roomType || '-',
+
+          userName: data.userName || reservation.userName || '-',
+          userEmail: data.userEmail || reservation.userEmail || '-',
+          userPhone: data.userPhone || '-',
+
+          checkInDate: data.startDate || reservation.checkInDate,
+          checkOutDate: data.endDate || reservation.checkOutDate,
+          guestCount: (data.numAdult || 0) + (data.numKid || 0) || reservation.guestCount || 0,
+
+          paymentMethod: data.paymentMethod || reservation.paymentMethod || '-',
+          totalAmount: data.totalPrice ?? reservation.totalAmount ?? 0,
+          paymentStatus: data.paymentStatus || reservation.paymentStatus || 'NONE'
+        }
+        
+        console.log('상세 모달 데이터 설정 완료:', selectedReservation.value)
         showDetailModal.value = true
+        
       } catch (error) {
-        alert('예약 상세 정보를 불러오는데 실패했습니다.')
+        console.error('예약 상세 조회 오류:', error)
+        console.error('오류 응답:', error.response?.data)
+        
+        let errorMessage = '예약 상세 정보를 불러오는데 실패했습니다.'
+        if (error.response?.status === 404) {
+          errorMessage = '예약 정보를 찾을 수 없습니다.'
+        } else if (error.response?.status === 500) {
+          errorMessage = '서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.'
+        } else if (error.response?.data?.message) {
+          errorMessage = error.response.data.message
+        }
+        
+        alert(errorMessage)
       }
     }
 
@@ -292,21 +367,18 @@ export default {
     const getReservationStatusText = (status) => {
       const statusMap = {
         'PENDING': '대기중',
-        'CONFIRMED': '확정',
-        'CHECKED_IN': '체크인',
-        'CHECKED_OUT': '체크아웃',
-        'CANCELLED': '취소',
-        'NO_SHOW': '노쇼'
+        'COMPLETED': '확정',
+        'CANCELLED': '취소'
       }
       return statusMap[status] || status
     }
 
     const reservationTagType = (status) => {
-      const map = { PENDING: 'warning', CONFIRMED: 'success', CHECKED_IN: 'info', CHECKED_OUT: 'info', CANCELLED: 'danger', NO_SHOW: 'danger' }
+      const map = { PENDING: 'warning', COMPLETED: 'success', CANCELLED: 'danger' }
       return map[status] || 'info'
     }
     const paymentTagType = (status) => {
-      const map = { PENDING: 'warning', COMPLETED: 'success', FAILED: 'danger', CANCELLED: 'info', REFUNDED: 'danger' }
+      const map = { PAID: 'success', CANCELLED: 'info', REFUNDED: 'danger', NONE: 'warning' }
       return map[status] || 'info'
     }
 
@@ -314,22 +386,17 @@ export default {
     const getReservationStatusClass = (status) => {
       const classMap = {
         'PENDING': 'status-pending',
-        'CONFIRMED': 'status-confirmed',
-        'CHECKED_IN': 'status-checked-in',
-        'CHECKED_OUT': 'status-checked-out',
-        'CANCELLED': 'status-cancelled',
-        'NO_SHOW': 'status-no-show'
+        'COMPLETED': 'status-confirmed',
+        'CANCELLED': 'status-cancelled'
       }
       return classMap[status] || ''
     }
 
     // 결제 상태 텍스트
     const getPaymentStatusText = (status) => {
-      if (!status) return '결제정보없음'
+      if (!status || status === 'NONE') return '결제정보없음'
       const statusMap = {
-        'PENDING': '결제대기',
-        'COMPLETED': '결제완료',
-        'FAILED': '결제실패',
+        'PAID': '결제완료',
         'CANCELLED': '결제취소',
         'REFUNDED': '환불완료'
       }
@@ -338,11 +405,9 @@ export default {
 
     // 결제 상태 클래스
     const getPaymentStatusClass = (status) => {
-      if (!status) return 'status-no-payment'
+      if (!status || status === 'NONE') return 'status-no-payment'
       const classMap = {
-        'PENDING': 'status-pending',
-        'COMPLETED': 'status-completed',
-        'FAILED': 'status-failed',
+        'PAID': 'status-completed',
         'CANCELLED': 'status-cancelled',
         'REFUNDED': 'status-refunded'
       }

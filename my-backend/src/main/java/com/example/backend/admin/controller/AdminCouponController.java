@@ -22,9 +22,18 @@ public class AdminCouponController {
     private final AdminCouponService couponService;
 
     @GetMapping
-    public ApiResponse<PageResponse<Coupon>> list(@RequestParam(required = false) Boolean active, Pageable pageable) {
-        Page<Coupon> page = couponService.list(active, pageable);
+    public ApiResponse<PageResponse<Coupon>> list(@RequestParam(required = false) Boolean active,
+                                                 @RequestParam(required = false) Coupon.DiscountType discountType,
+                                                 @RequestParam(required = false) String code,
+                                                 @RequestParam(required = false) String name,
+                                                 Pageable pageable) {
+        Page<Coupon> page = couponService.list(active, discountType, code, name, pageable);
         return ApiResponse.ok(PageResponse.of(page));
+    }
+
+    @GetMapping("/stats")
+    public ApiResponse<java.util.Map<String, Long>> stats() {
+        return ApiResponse.ok(couponService.getStats());
     }
 
     @GetMapping("/{id}")
@@ -47,6 +56,26 @@ public class AdminCouponController {
             return ResponseEntity.ok(ApiResponse.ok(couponService.update(id, coupon)));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(ApiResponse.fail(e.getMessage()));
+        }
+    }
+
+    @PutMapping("/{id}/status")
+    public ResponseEntity<ApiResponse<Void>> updateStatus(@PathVariable Long id, @RequestBody java.util.Map<String, Object> statusUpdate) {
+        try {
+            Boolean isActive = (Boolean) statusUpdate.get("status");
+            if ("ACTIVE".equals(statusUpdate.get("status"))) {
+                isActive = true;
+            } else if ("INACTIVE".equals(statusUpdate.get("status"))) {
+                isActive = false;
+            }
+            
+            Coupon coupon = couponService.get(id);
+            coupon.setIsActive(isActive);
+            couponService.update(id, coupon);
+            
+            return ResponseEntity.ok(ApiResponse.ok(null));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(ApiResponse.fail("쿠폰 상태 변경에 실패했습니다."));
         }
     }
 

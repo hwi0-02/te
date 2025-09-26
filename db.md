@@ -1,5 +1,4 @@
--- Hotel Database CREATE TABLE Statements
-
+-- 편의시설 테이블
 CREATE TABLE `amenity` (
   `id` bigint(20) NOT NULL AUTO_INCREMENT,
   `name` varchar(255) NOT NULL,
@@ -15,6 +14,7 @@ CREATE TABLE `amenity` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- 사용자 테이블
 CREATE TABLE `app_user` (
   `id` bigint(20) NOT NULL AUTO_INCREMENT,
   `name` varchar(255) NOT NULL,
@@ -31,10 +31,11 @@ CREATE TABLE `app_user` (
   `provider_id` varchar(255) DEFAULT NULL,
   `social_providers` text DEFAULT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uq_user_phone` (`phone`),
-  UNIQUE KEY `uq_user_email` (`email`)
-) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  UNIQUE KEY `uq_user_email` (`email`),
+  UNIQUE KEY `uq_user_phone` (`phone`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- 쿠폰 테이블
 CREATE TABLE `coupon` (
   `id` bigint(20) NOT NULL AUTO_INCREMENT,
   `user_id` bigint(20) NOT NULL,
@@ -52,6 +53,7 @@ CREATE TABLE `coupon` (
   CONSTRAINT `FK_User_TO_Coupon_1` FOREIGN KEY (`user_id`) REFERENCES `app_user` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- 호텔 테이블
 CREATE TABLE `hotel` (
   `id` bigint(20) NOT NULL AUTO_INCREMENT,
   `user_id` bigint(20) NOT NULL,
@@ -69,8 +71,9 @@ CREATE TABLE `hotel` (
   PRIMARY KEY (`id`),
   KEY `idx_hotel_user` (`user_id`),
   CONSTRAINT `FK_User_TO_Hotel_1` FOREIGN KEY (`user_id`) REFERENCES `app_user` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- 호텔-편의시설 연결 테이블
 CREATE TABLE `hotel_amenity` (
   `hotel_id` bigint(20) NOT NULL,
   `amenity_id` bigint(20) NOT NULL,
@@ -80,6 +83,7 @@ CREATE TABLE `hotel_amenity` (
   CONSTRAINT `FK_Hotel_TO_Hotel_Amenity_1` FOREIGN KEY (`hotel_id`) REFERENCES `hotel` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- 호텔 이미지 테이블
 CREATE TABLE `hotel_image` (
   `id` bigint(20) NOT NULL AUTO_INCREMENT,
   `hotel_id` bigint(20) NOT NULL,
@@ -92,8 +96,9 @@ CREATE TABLE `hotel_image` (
   UNIQUE KEY `uq_hotel_sort` (`hotel_id`,`sort_no`),
   KEY `idx_himg_hotel` (`hotel_id`),
   CONSTRAINT `fk_himg_hotel` FOREIGN KEY (`hotel_id`) REFERENCES `hotel` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- 문의 테이블
 CREATE TABLE `inquiry` (
   `id` bigint(20) NOT NULL AUTO_INCREMENT,
   `content` text DEFAULT NULL,
@@ -106,6 +111,7 @@ CREATE TABLE `inquiry` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
 
+-- 공지사항 테이블
 CREATE TABLE `notice` (
   `id` bigint(20) NOT NULL AUTO_INCREMENT,
   `is_active` bit(1) NOT NULL,
@@ -117,6 +123,7 @@ CREATE TABLE `notice` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
 
+-- 객실 테이블
 CREATE TABLE `room` (
   `id` bigint(20) NOT NULL AUTO_INCREMENT,
   `hotel_id` bigint(20) NOT NULL,
@@ -142,8 +149,9 @@ CREATE TABLE `room` (
   PRIMARY KEY (`id`),
   KEY `idx_room_hotel` (`hotel_id`),
   CONSTRAINT `FK_Hotel_TO_Room_1` FOREIGN KEY (`hotel_id`) REFERENCES `hotel` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- 예약 테이블
 CREATE TABLE `reservation` (
   `id` bigint(20) NOT NULL AUTO_INCREMENT,
   `user_id` bigint(20) NOT NULL,
@@ -163,6 +171,7 @@ CREATE TABLE `reservation` (
   CONSTRAINT `FK_User_TO_Reservation_1` FOREIGN KEY (`user_id`) REFERENCES `app_user` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- 결제 테이블
 CREATE TABLE `payment` (
   `id` bigint(20) NOT NULL AUTO_INCREMENT,
   `reservation_id` bigint(20) NOT NULL,
@@ -181,6 +190,7 @@ CREATE TABLE `payment` (
   CONSTRAINT `FK_Reservation_TO_Payment_1` FOREIGN KEY (`reservation_id`) REFERENCES `reservation` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- 리뷰 테이블
 CREATE TABLE `review` (
   `id` bigint(20) NOT NULL AUTO_INCREMENT,
   `reservation_id` bigint(20) NOT NULL,
@@ -193,6 +203,7 @@ CREATE TABLE `review` (
   CONSTRAINT `FK_Reservation_TO_Review_1` FOREIGN KEY (`reservation_id`) REFERENCES `reservation` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- 객실 이미지 테이블
 CREATE TABLE `room_image` (
   `id` bigint(20) NOT NULL AUTO_INCREMENT,
   `room_id` bigint(20) NOT NULL,
@@ -205,8 +216,9 @@ CREATE TABLE `room_image` (
   UNIQUE KEY `uq_room_sort` (`room_id`,`sort_no`),
   KEY `idx_rimg_room` (`room_id`),
   CONSTRAINT `fk_rimg_room` FOREIGN KEY (`room_id`) REFERENCES `room` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- 객실 재고 테이블
 CREATE TABLE `room_inventory` (
   `id` bigint(20) NOT NULL AUTO_INCREMENT,
   `room_id` bigint(20) NOT NULL,
@@ -219,6 +231,7 @@ CREATE TABLE `room_inventory` (
   CONSTRAINT `FK_Room_TO_Room_Inventory_1` FOREIGN KEY (`room_id`) REFERENCES `room` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- 객실 가격 정책 테이블
 CREATE TABLE `room_price_policy` (
   `id` bigint(20) NOT NULL AUTO_INCREMENT,
   `room_id` bigint(20) NOT NULL,

@@ -29,7 +29,8 @@ public class Hotel {
     private String address;
 
     @Column(name = "star_rating")
-    private Integer starRating;
+    @Builder.Default
+    private Integer starRating = 0; // 기본값 0으로 설정
 
     @Column(nullable = false, updatable = false)
     @CreationTimestamp
@@ -58,5 +59,15 @@ public class Hotel {
     private String rejectionReason;
 
     // Lombok @Builder will generate builder() method automatically.
+    
+    @PrePersist
+    protected void onCreate() {
+        if (starRating == null) {
+            starRating = 0;
+        }
+        if (approvalStatus == null) {
+            approvalStatus = ApprovalStatus.PENDING;
+        }
+    }
 
 }

@@ -11,6 +11,10 @@ import OAuth2Redirect from "@/components/user/login_page/OAuth2Redirect.vue"
 import MainPage from "@/components/user/main_page/MainPage.vue"
 import TermsPage from "@/components/user/main_page/Terms.vue"
 import PrivacyPage from "@/components/user/main_page/Privacy.vue"
+import BusinessApply from "@/components/user/main_page/BusinessApply.vue"
+import MyPage from "@/components/user/my_page/MyPage.vue"
+import MyReser from "@/components/user/my_page/MyReser.vue"
+import Support from "@/components/user/support_page/Support.vue"
 
 // Hotel search/detail (네가 쓰던 경로 유지)
 import Search from "@/components/user/hotel_page/Search.vue"
@@ -58,6 +62,10 @@ const routes = [
   { path: "/register", component: Register },
   { path: "/terms", component: TermsPage },
   { path: "/privacy", component: PrivacyPage },
+  { path: "/business/apply", component: BusinessApply },
+  { path: "/mypage", component: MyPage },
+  { path: "/myreservation", component: MyReser },
+  { path: "/support", component: Support },
   { path: "/forgotPassword", component: ForgotPassword },
   { path: "/forgot-password", component: ForgotPassword },
   { path: "/verify", component: LoginVerify },

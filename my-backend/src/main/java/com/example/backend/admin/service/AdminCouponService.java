@@ -17,7 +17,23 @@ import java.util.List;
 public class AdminCouponService {
     private final CouponRepository couponRepository;
 
-    public Page<Coupon> list(Boolean active, Pageable pageable) { return couponRepository.search(active, pageable); }
+    public Page<Coupon> list(Boolean active, Coupon.DiscountType discountType, String code, String name, Pageable pageable) { 
+        return couponRepository.search(active, discountType, code, name, pageable); 
+    }
+    
+    public java.util.Map<String, Long> getStats() {
+        Long total = couponRepository.count();
+        Long active = couponRepository.countActiveCoupons();
+        Long inactive = couponRepository.countInactiveCoupons();
+        Long expired = couponRepository.countExpiredCoupons();
+        
+        return java.util.Map.of(
+            "totalCoupons", total,
+            "activeCoupons", active,
+            "inactiveCoupons", inactive,
+            "expiredCoupons", expired
+        );
+    }
     public Coupon get(Long id) { return couponRepository.findById(id).orElseThrow(); }
     public Coupon create(Coupon c) {
         if (couponRepository.existsByCode(c.getCode())) {

@@ -164,13 +164,35 @@ export default {
         const sortParam = toApiSort(sort.value)
         if (sortParam) paramsObj.sort = sortParam
 
+        console.log('결제 목록 요청 파라미터:', paramsObj)
+
         const res = await api.get('/admin/payments', { params: paramsObj })
-        const data = res.data
-        payments.items = data.content || []
-        payments.page = data.number || 0
+        console.log('결제 목록 응답:', res.data)
+        
+        const data = res?.data?.data || {}
+        
+        // PaymentSummaryDto 배열을 UI 형태로 변환
+        const items = Array.isArray(data.content) ? data.content : []
+        payments.items = items.map(payment => ({
+          id: payment.paymentId,
+          reservationNumber: payment.transactionId || '-',
+          hotelName: payment.hotelName || '-',
+          userName: payment.userName || '-',
+          amount: payment.totalPrice || 0,
+          method: payment.paymentMethod || '-',
+          status: payment.paymentStatus || 'UNKNOWN',
+          paidAt: payment.paymentCreatedAt,
+          cancelledAt: payment.refundedAt
+        }))
+        
+        payments.page = (data.page ?? data.number ?? 0)
         payments.totalPages = data.totalPages || 0
         payments.totalElements = data.totalElements || 0
+        
+        console.log('결제 목록 매핑 완료:', payments.items.length, '건')
+        
       } catch (err) {
+        console.error('결제 목록 로딩 오류:', err)
         const status = err?.response?.status
         if (status === 401) {
           alert('로그인이 필요합니다. 다시 로그인해 주세요.')
@@ -233,7 +255,7 @@ export default {
       if (!confirm('이 결제를 환불하시겠습니까?')) return
       refundingId.value = row.id
       try {
-        await api.post(`/admin/payments/${row.id}/refund`)
+        await api.put(`/admin/payments/${row.id}/refund`)
         alert('환불이 처리되었습니다.')
         loadPayments(payments.page)
       } catch (e) {

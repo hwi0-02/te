@@ -115,4 +115,4 @@ const goBack = () => {
 }
 </script>
 
-<style scoped src="@/assets/css/page/business-apply.css"></style>
+<style scoped src="@/assets/css/homepage/business-apply.css"></style>

@@ -93,19 +93,22 @@
             </td>
             <td>
               <div class="rating">
-                <span class="stars">{{ getStarRating(review.rating) }}</span>
-                <small>({{ review.rating }}/5)</small>
+                <span class="stars">{{ getStarRating(review.starRating) }}</span>
+                <small>({{ review.starRating }}/5)</small>
               </div>
             </td>
             <td>
               <div class="review-title" @click="viewReviewDetail(review)">
-                {{ review.title }}
                 <small v-if="review.content && review.content.length > 50">
                   {{ review.content.substring(0, 50) }}...
                 </small>
+                <small v-else-if="review.content">
+                  {{ review.content }}
+                </small>
+                <small v-else>내용 없음</small>
               </div>
             </td>
-            <td>{{ formatDateTime(review.createdAt) }}</td>
+            <td>{{ formatDateTime(review.wroteOn) }}</td>
             <td>
               <div class="status-badges">
                 <span v-if="review.isReported" class="status-badge reported">신고됨</span>
@@ -313,6 +316,7 @@
 
 <script>
 import { ref, reactive, onMounted } from 'vue'
+import axios from '@/api/http.js'
 
 export default {
   name: 'ReviewManagement',
@@ -346,34 +350,31 @@ export default {
     // 리뷰 목록 조회
     const searchReviews = async () => {
       try {
-        const params = new URLSearchParams({
+        const params = {
           page: pagination.currentPage,
           size: pagination.size
-        })
+        }
 
-        if (showReportedOnly.value) params.append('reported', 'true')
-        if (showHiddenOnly.value) params.append('hidden', 'true')
-        if (filters.hotelName) params.append('hotelName', filters.hotelName)
-        if (filters.userName) params.append('userName', filters.userName)
+        if (showReportedOnly.value) params.reported = true
+        if (showHiddenOnly.value) params.hidden = true
+        if (filters.hotelName) params.hotelName = filters.hotelName
+        if (filters.userName) params.userName = filters.userName
 
-  const response = await fetch(`/api/admin/reviews?${params}`, {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          }
-        })
+        console.log('리뷰 목록 요청 파라미터:', params)
 
-        if (!response.ok) throw new Error('리뷰 목록 조회 실패')
+        const response = await axios.get('/admin/reviews', { params })
+        console.log('리뷰 목록 응답:', response.data)
 
-        const data = await response.json()
+        const data = response.data?.data || { content: [], totalPages: 0, totalElements: 0 }
         reviews.value = data.content || []
         
         pagination.totalPages = data.totalPages || 0
         pagination.totalElements = data.totalElements || 0
-
-        // 통계 업데이트 (실제로는 별도 API 호출)
+        
         updateStatistics()
         
       } catch (error) {
+        console.error('리뷰 목록 로딩 오류:', error)
         alert('리뷰 목록을 불러오는데 실패했습니다.')
       }
     }
@@ -384,8 +385,8 @@ export default {
       reportedReviews.value = reviews.value.filter(r => r.isReported).length
       hiddenReviews.value = reviews.value.filter(r => r.isHidden).length
       
-      if (reviews.value.length > 0) {
-        const avgRating = reviews.value.reduce((sum, r) => sum + r.rating, 0) / reviews.value.length
+        if (reviews.value.length > 0) {
+        const avgRating = reviews.value.reduce((sum, r) => sum + r.starRating, 0) / reviews.value.length
         averageRating.value = avgRating.toFixed(1)
       }
     }
@@ -409,18 +410,36 @@ export default {
     // 리뷰 상세 보기
     const viewReviewDetail = async (review) => {
       try {
-  const response = await fetch(`/api/admin/reviews/${review.reviewId}`, {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          }
-        })
+        console.log('리뷰 상세 조회 시작:', review.reviewId)
+        
+        const response = await axios.get(`/admin/reviews/${review.reviewId}`)
+        console.log('리뷰 상세 조회 응답:', response.data)
 
-        if (!response.ok) throw new Error('리뷰 상세 조회 실패')
-
-        selectedReview.value = await response.json()
+        const data = response.data?.data || {}
+        selectedReview.value = {
+          reviewId: data.reviewId || review.reviewId,
+          rating: data.starRating || review.starRating,
+          content: data.content || review.content || '',
+          imageUrls: data.image || review.image,
+          createdAt: data.wroteOn || review.wroteOn,
+          isReported: data.isReported || review.isReported || false,
+          isHidden: data.isHidden || review.isHidden || false,
+          adminReply: data.adminReply || '',
+          repliedAt: data.repliedAt,
+          
+          userId: data.userId || review.userId,
+          userName: data.userName || review.userName,
+          userEmail: data.userEmail || review.userEmail,
+          
+          hotelId: data.hotelId || review.hotelId,
+          hotelName: data.hotelName || review.hotelName,
+          reservationNumber: data.transactionId || review.transactionId
+        }
+        
         showDetailModal.value = true
         
       } catch (error) {
+        console.error('리뷰 상세 조회 오류:', error)
         alert('리뷰 상세 정보를 불러오는데 실패했습니다.')
       }
     }
@@ -436,14 +455,7 @@ export default {
       if (!confirm('이 리뷰를 숨김 처리하시겠습니까?')) return
 
       try {
-  const response = await fetch(`/api/admin/reviews/${review.reviewId}/hide`, {
-          method: 'PUT',
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          }
-        })
-
-        if (!response.ok) throw new Error('리뷰 숨김 처리 실패')
+        await axios.put(`/admin/reviews/${review.reviewId}/hide`)
 
         alert('리뷰가 성공적으로 숨김 처리되었습니다.')
         searchReviews()
@@ -453,6 +465,7 @@ export default {
         }
         
       } catch (error) {
+        console.error('리뷰 숨김 처리 오류:', error)
         alert('리뷰 숨김 처리에 실패했습니다.')
       }
     }
@@ -462,14 +475,7 @@ export default {
       if (!confirm('이 리뷰의 숨김을 해제하시겠습니까?')) return
 
       try {
-  const response = await fetch(`/api/admin/reviews/${review.reviewId}/show`, {
-          method: 'PUT',
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          }
-        })
-
-        if (!response.ok) throw new Error('리뷰 숨김 해제 실패')
+        await axios.put(`/admin/reviews/${review.reviewId}/show`)
 
         alert('리뷰 숨김이 성공적으로 해제되었습니다.')
         searchReviews()
@@ -479,6 +485,7 @@ export default {
         }
         
       } catch (error) {
+        console.error('리뷰 숨김 해제 오류:', error)
         alert('리뷰 숨김 해제에 실패했습니다.')
       }
     }
@@ -488,14 +495,7 @@ export default {
       if (!confirm('이 리뷰를 신고 처리하시겠습니까?')) return
 
       try {
-  const response = await fetch(`/api/admin/reviews/${review.reviewId}/report`, {
-          method: 'PUT',
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          }
-        })
-
-        if (!response.ok) throw new Error('리뷰 신고 처리 실패')
+        await axios.put(`/admin/reviews/${review.reviewId}/report`)
 
         alert('리뷰가 성공적으로 신고 처리되었습니다.')
         searchReviews()
@@ -505,6 +505,7 @@ export default {
         }
         
       } catch (error) {
+        console.error('리뷰 신고 처리 오류:', error)
         alert('리뷰 신고 처리에 실패했습니다.')
       }
     }

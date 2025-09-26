@@ -9,8 +9,12 @@ import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 public interface HotelRepository extends JpaRepository<Hotel, Long> {
+    
+    // 사업자 등록번호로 호텔 찾기
+    Optional<Hotel> findByBusinessId(Long businessId);
 
     @Query(value = "SELECT * FROM hotel h WHERE (:name IS NULL OR h.name LIKE CONCAT('%',:name,'%')) " +
 	    "AND (:minStar IS NULL OR h.star_rating >= :minStar)",

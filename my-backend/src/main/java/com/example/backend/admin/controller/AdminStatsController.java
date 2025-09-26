@@ -38,17 +38,39 @@ public class AdminStatsController {
     }
 
     @GetMapping("/sales")
-    public ResponseEntity<Map<String,Object>> sales(@RequestParam(defaultValue = "monthly") String period,
-                                                    @RequestParam(required = false) Integer year,
-                                                    @RequestParam(required = false) Integer month) {
+    public ResponseEntity<Map<String,Object>> sales(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) java.time.LocalDate from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) java.time.LocalDate to) {
         Map<String,Object> m = new HashMap<>();
-        m.put("period", period);
-        m.put("year", year);
-        m.put("month", month);
-        var monthly = paymentRepository.sumMonthlyRevenue(year);
-        m.put("monthlyData", monthly);
-        long totalRevenue = monthly.stream().mapToLong(r -> ((Number) r[1]).longValue()).sum();
-        m.put("totalRevenue", totalRevenue);
+        var start = from.atStartOfDay();
+        var end = to.atTime(java.time.LocalTime.MAX);
+
+        // 총 매출
+        Long totalRevenue = paymentRepository.sumTotalPriceByCreatedAtBetween(start, end);
+        m.put("totalRevenue", totalRevenue != null ? totalRevenue : 0L);
+
+        // 호텔별 매출/정산/예약건수
+        var rows = paymentRepository.hotelRevenueBetween(start, end);
+        java.util.List<Map<String,Object>> settlements = new java.util.ArrayList<>();
+        long platformFee = 0L;
+        for (Object[] r : rows) {
+            Long hotelId = ((Number) r[0]).longValue();
+            String hotelName = (String) r[1];
+            Long revenue = ((Number) r[2]).longValue();
+            Integer reservationCount = ((Number) r[3]).intValue();
+            long fee = Math.round(revenue * 0.10);
+            platformFee += fee;
+            long settlementAmount = revenue - fee; // 90%
+            Map<String,Object> item = new HashMap<>();
+            item.put("hotelId", hotelId);
+            item.put("hotelName", hotelName);
+            item.put("totalRevenue", revenue);
+            item.put("reservationCount", reservationCount);
+            item.put("settlementAmount", settlementAmount);
+            settlements.add(item);
+        }
+        m.put("platformFeeAmount", platformFee);
+        m.put("hotelSettlements", settlements);
         return ResponseEntity.ok(m);
     }
 
