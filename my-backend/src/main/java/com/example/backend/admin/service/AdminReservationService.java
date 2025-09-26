@@ -72,11 +72,18 @@ public class AdminReservationService {
                 throw new RuntimeException("예약을 찾을 수 없습니다: " + id);
             }
 
-            Object[] result = reservationRepository.findDetailById(id);
-            if (result == null) {
+            Object[] queryResult = reservationRepository.findDetailById(id);
+            if (queryResult == null) {
                 log.warn("예약 상세 조회 결과가 null - ID: {}", id);
                 throw new RuntimeException("예약 상세 정보를 찾을 수 없습니다: " + id);
             }
+
+            // JPA 네이티브 쿼리 결과가 중첩 배열로 반환되는 경우를 처리
+            Object[] result = queryResult;
+            if (result.length == 1 && result[0] instanceof Object[]) {
+                result = (Object[]) result[0];
+            }
+
 
             log.info("예약 상세 조회 성공 - ID: {}, 데이터 길이: {}", id, result.length);
             

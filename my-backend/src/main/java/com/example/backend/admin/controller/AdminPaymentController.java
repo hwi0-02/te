@@ -7,12 +7,15 @@ import com.example.backend.dto.PageResponse;
 import com.example.backend.admin.dto.PaymentSummaryDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import org.springframework.format.annotation.DateTimeFormat;
 import java.time.LocalDateTime;
+import java.util.stream.Collectors;
 
 @Slf4j
 @RestController
@@ -29,12 +32,25 @@ public class AdminPaymentController {
                                                                   @RequestParam(required = false) String hotelName,
                                                                   @RequestParam(required = false) String userName,
                                                                   Pageable pageable) {
-        log.info("결제 목록 API 호출 - status: {}, from: {}, to: {}, hotelName: {}, userName: {}", 
+        log.info("결제 목록 API 호출 - status: {}, from: {}, to: {}, hotelName: {}, userName: {}",
                 status, from, to, hotelName, userName);
-        
-        var page = paymentService.listWithDetails(status, from, to, hotelName, userName, pageable);
+
+        // "paidAt" 정렬 기준을 "createdAt"으로 변환
+        Sort sort = pageable.getSort().stream()
+                .map(order -> {
+                    if (order.getProperty().equals("paidAt")) {
+                        return order.withProperty("createdAt");
+                    }
+                    return order;
+                })
+                .collect(Collectors.collectingAndThen(Collectors.toList(), Sort::by));
+
+        Pageable newPageable = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), sort);
+
+        var page = paymentService.listWithDetails(status, from, to, hotelName, userName, newPageable);
         return ResponseEntity.ok(ApiResponse.ok(PageResponse.of(page)));
     }
+
 
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<Payment>> detail(@PathVariable Long id) {

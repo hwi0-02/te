@@ -23,17 +23,16 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
 
 	// 결제 상세 정보 조회 (예약, 호텔, 사용자 정보 포함)
 	@Query(value = """
-		SELECT 
+		SELECT
 			p.id AS paymentId,
 			p.reservation_id AS reservationId,
 			r.transaction_id AS transactionId,
 			h.name AS hotelName,
 			u.name AS userName,
-			u.email AS userEmail,
 			p.total_price AS totalPrice,
 			p.payment_method AS paymentMethod,
 			p.status AS paymentStatus,
-			p.created_at AS paymentCreatedAt,
+			p.created_at AS createdAt, -- "paymentCreatedAt"에서 "createdAt"으로 별칭 변경
 			p.refunded_at AS refundedAt
 		FROM payment p
 		LEFT JOIN reservation r ON p.reservation_id = r.id
@@ -45,7 +44,6 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
 		AND (:to IS NULL OR p.created_at <= :to)
 		AND (:hotelName IS NULL OR h.name LIKE CONCAT('%', :hotelName, '%'))
 		AND (:userName IS NULL OR u.name LIKE CONCAT('%', :userName, '%'))
-		ORDER BY p.created_at DESC
 		""",
 		countQuery = """
 		SELECT COUNT(*)

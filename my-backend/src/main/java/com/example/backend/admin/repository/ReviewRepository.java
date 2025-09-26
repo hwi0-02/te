@@ -10,13 +10,13 @@ import org.springframework.data.repository.query.Param;
 public interface ReviewRepository extends JpaRepository<Review, Long> {
 	@Query("SELECT r FROM Review r WHERE (:reported IS NULL OR r.isReported = :reported) " +
 			"AND (:hidden IS NULL OR r.isHidden = :hidden)")
-	Page<Review> search(@Param("reported") Boolean reported, 
-	                   @Param("hidden") Boolean hidden, 
+	Page<Review> search(@Param("reported") Boolean reported,
+	                   @Param("hidden") Boolean hidden,
 	                   Pageable pageable);
 
 	// 리뷰 상세 정보 조회 (호텔, 사용자, 예약 정보 포함)
 	@Query(value = """
-		SELECT 
+		SELECT
 			rv.id AS reviewId,
 			rv.star_rating AS starRating,
 			rv.content AS content,
@@ -45,7 +45,6 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
 		AND (:hidden IS NULL OR rv.is_hidden = :hidden)
 		AND (:hotelName IS NULL OR h.name LIKE CONCAT('%', :hotelName, '%'))
 		AND (:userName IS NULL OR u.name LIKE CONCAT('%', :userName, '%'))
-		ORDER BY rv.wrote_on DESC
 		""",
 		countQuery = """
 		SELECT COUNT(*)
@@ -68,7 +67,7 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
 
 	// 단일 리뷰 상세 조회
 	@Query(value = """
-		SELECT 
+		SELECT
 			rv.id AS reviewId,
 			rv.star_rating AS starRating,
 			rv.content AS content,

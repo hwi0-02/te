@@ -11,22 +11,23 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
 public class AdminCouponService {
     private final CouponRepository couponRepository;
 
-    public Page<Coupon> list(Boolean active, Coupon.DiscountType discountType, String code, String name, Pageable pageable) { 
-        return couponRepository.search(active, discountType, code, name, pageable); 
+    public Page<Coupon> list(Boolean active, Coupon.DiscountType discountType, String code, String name, Pageable pageable) {
+        return couponRepository.search(active, discountType, code, name, pageable);
     }
-    
+
     public java.util.Map<String, Long> getStats() {
         Long total = couponRepository.count();
         Long active = couponRepository.countActiveCoupons();
         Long inactive = couponRepository.countInactiveCoupons();
         Long expired = couponRepository.countExpiredCoupons();
-        
+
         return java.util.Map.of(
             "totalCoupons", total,
             "activeCoupons", active,
@@ -41,23 +42,36 @@ public class AdminCouponService {
         }
         return couponRepository.save(c);
     }
+
+    // 필요한 필드만 업데이트하도록 수정
     public Coupon update(Long id, Coupon req) {
         Coupon c = couponRepository.findById(id).orElseThrow();
         if (req.getCode() != null && !req.getCode().equals(c.getCode())) {
             if (couponRepository.existsByCodeAndIdNot(req.getCode(), id)) {
                 throw new IllegalArgumentException("Coupon code already exists");
             }
+            c.setCode(req.getCode());
         }
-        c.setName(req.getName());
-        c.setCode(req.getCode());
-        c.setDiscountType(req.getDiscountType());
-        c.setDiscountValue(req.getDiscountValue());
-        c.setMinSpend(req.getMinSpend());
-        c.setValidFrom(req.getValidFrom());
-        c.setValidTo(req.getValidTo());
-        c.setIsActive(req.getIsActive());
+
+        if (req.getName() != null) c.setName(req.getName());
+        if (req.getDiscountType() != null) c.setDiscountType(req.getDiscountType());
+        if (req.getDiscountValue() != null) c.setDiscountValue(req.getDiscountValue());
+        if (req.getMinSpend() != null) c.setMinSpend(req.getMinSpend());
+        if (req.getValidFrom() != null) c.setValidFrom(req.getValidFrom());
+        if (req.getValidTo() != null) c.setValidTo(req.getValidTo());
+        if (req.getIsActive() != null) c.setIsActive(req.getIsActive());
+
         return couponRepository.save(c);
     }
+
+    // 상태 변경만을 위한 메서드 추가
+    @Transactional
+    public void updateStatus(Long id, boolean isActive) {
+        Coupon coupon = couponRepository.findById(id).orElseThrow(() -> new IllegalArgumentException("Coupon not found"));
+        coupon.setIsActive(isActive);
+        couponRepository.save(coupon);
+    }
+
     public void delete(Long id) { couponRepository.deleteById(id); }
 
     @Transactional

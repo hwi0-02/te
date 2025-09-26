@@ -30,12 +30,12 @@ public class AdminPaymentService {
                                                    String hotelName, String userName,
                                                    Pageable pageable) {
         String statusStr = status != null ? status.name() : null;
-        
-        log.info("결제 목록 조회 - status: {}, from: {}, to: {}, hotelName: {}, userName: {}", 
+
+        log.info("결제 목록 조회 - status: {}, from: {}, to: {}, hotelName: {}, userName: {}",
                 statusStr, from, to, hotelName, userName);
 
         Page<Object[]> results = paymentRepository.searchWithDetails(statusStr, from, to, hotelName, userName, pageable);
-        
+
         log.info("조회된 결제 결과 수: {}", results.getContent().size());
 
         List<PaymentSummaryDto> dtos = results.getContent().stream()
@@ -57,8 +57,8 @@ public class AdminPaymentService {
     }
 
     private PaymentSummaryDto mapToPaymentSummaryDto(Object[] row) {
-        if (row == null || row.length < 11) {
-            log.warn("결제 데이터 매핑 오류: 최소 11개 필드가 필요하지만 {}개만 조회됨", row != null ? row.length : 0);
+        if (row == null || row.length < 10) {
+            log.warn("결제 데이터 매핑 오류: 최소 10개 필드가 필요하지만 {}개만 조회됨", row != null ? row.length : 0);
             throw new IllegalArgumentException("조회된 결제 데이터가 불완전합니다");
         }
 
@@ -68,34 +68,59 @@ public class AdminPaymentService {
             .transactionId(safeString(row[2]))
             .hotelName(safeString(row[3]))
             .userName(safeString(row[4]))
-            .totalPrice(safeInteger(row[6]))
-            .paymentMethod(safeString(row[7]))
-            .paymentStatus(safeString(row[8]))
-            .paymentCreatedAt(safeDateTime(row[9]))
-            .refundedAt(safeDateTime(row[10]))
+            .totalPrice(safeInteger(row[5]))
+            .paymentMethod(safeString(row[6]))
+            .paymentStatus(safeString(row[7]))
+            .paymentCreatedAt(safeDateTime(row[8]))
+            .refundedAt(safeDateTime(row[9]))
             .build();
     }
 
     private Long safeLong(Object obj) {
         if (obj == null) return null;
-        if (obj instanceof Number) return ((Number) obj).longValue();
-        return null;
+        try {
+            if (obj instanceof Number) return ((Number) obj).longValue();
+            if (obj instanceof String) return Long.parseLong((String) obj);
+            return null;
+        } catch (Exception e) {
+            log.warn("Long 변환 실패: {}", obj, e);
+            return null;
+        }
     }
 
     private Integer safeInteger(Object obj) {
         if (obj == null) return null;
-        if (obj instanceof Number) return ((Number) obj).intValue();
-        return null;
+        try {
+            if (obj instanceof Number) return ((Number) obj).intValue();
+            if (obj instanceof String) return Integer.parseInt((String) obj);
+            return null;
+        } catch (Exception e) {
+            log.warn("Integer 변환 실패: {}", obj, e);
+            return null;
+        }
     }
 
     private String safeString(Object obj) {
-        return obj != null ? obj.toString() : null;
+        if (obj == null) return null;
+        try {
+            return obj.toString().trim();
+        } catch (Exception e) {
+            log.warn("String 변환 실패: {}", obj, e);
+            return null;
+        }
     }
 
     private LocalDateTime safeDateTime(Object obj) {
         if (obj == null) return null;
-        if (obj instanceof java.sql.Timestamp) return ((java.sql.Timestamp) obj).toLocalDateTime();
-        if (obj instanceof LocalDateTime) return (LocalDateTime) obj;
-        return null;
+        try {
+            if (obj instanceof java.sql.Timestamp) return ((java.sql.Timestamp) obj).toLocalDateTime();
+            if (obj instanceof LocalDateTime) return (LocalDateTime) obj;
+            if (obj instanceof java.sql.Date) return ((java.sql.Date) obj).toLocalDate().atStartOfDay();
+            if (obj instanceof java.util.Date) return ((java.util.Date) obj).toInstant().atZone(java.time.ZoneId.systemDefault()).toLocalDateTime();
+            return null;
+        } catch (Exception e) {
+            log.warn("LocalDateTime 변환 실패: {}", obj, e);
+            return null;
+        }
     }
 }

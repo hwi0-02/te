@@ -13,6 +13,7 @@ import org.springframework.http.ResponseEntity;
 import java.time.LocalDateTime;
 import org.springframework.format.annotation.DateTimeFormat;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/admin/coupons")
@@ -60,24 +61,37 @@ public class AdminCouponController {
     }
 
     @PutMapping("/{id}/status")
-    public ResponseEntity<ApiResponse<Void>> updateStatus(@PathVariable Long id, @RequestBody java.util.Map<String, Object> statusUpdate) {
+    public ResponseEntity<ApiResponse<Void>> updateStatus(@PathVariable Long id, @RequestBody Map<String, Object> statusUpdate) {
         try {
-            Boolean isActive = (Boolean) statusUpdate.get("status");
-            if ("ACTIVE".equals(statusUpdate.get("status"))) {
-                isActive = true;
-            } else if ("INACTIVE".equals(statusUpdate.get("status"))) {
-                isActive = false;
+            Object statusValue = statusUpdate.get("status");
+            if (statusValue == null) {
+                return ResponseEntity.badRequest().body(ApiResponse.fail("'status' field is required."));
             }
-            
-            Coupon coupon = couponService.get(id);
-            coupon.setIsActive(isActive);
-            couponService.update(id, coupon);
-            
+
+            boolean isActive;
+            if (statusValue instanceof Boolean) {
+                isActive = (Boolean) statusValue;
+            } else if (statusValue instanceof String) {
+                String statusStr = ((String) statusValue).toUpperCase();
+                if ("ACTIVE".equals(statusStr) || "TRUE".equals(statusStr)) {
+                    isActive = true;
+                } else if ("INACTIVE".equals(statusStr) || "FALSE".equals(statusStr)) {
+                    isActive = false;
+                } else {
+                    return ResponseEntity.badRequest().body(ApiResponse.fail("Invalid status value. Use 'ACTIVE', 'INACTIVE', true, or false."));
+                }
+            } else {
+                return ResponseEntity.badRequest().body(ApiResponse.fail("Invalid type for 'status' field."));
+            }
+
+            couponService.updateStatus(id, isActive);
             return ResponseEntity.ok(ApiResponse.ok(null));
+
         } catch (Exception e) {
-            return ResponseEntity.status(500).body(ApiResponse.fail("쿠폰 상태 변경에 실패했습니다."));
+            return ResponseEntity.status(500).body(ApiResponse.fail("쿠폰 상태 변경에 실패했습니다: " + e.getMessage()));
         }
     }
+
 
     @DeleteMapping("/{id}")
     public ApiResponse<Void> delete(@PathVariable Long id) {
@@ -110,4 +124,3 @@ public class AdminCouponController {
         return ApiResponse.ok(created);
     }
 }
- 
